@@ -1,11 +1,24 @@
+using Aplicacao.Data;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
-var port = Environment.GetEnvironmentVariable("PORT") ?? "3000";
-var url = $"http://0.0.0.0:{port}";
-var target = Environment.GetEnvironmentVariable("TARGET") ?? "World";
+builder.Services.AddDbContext<DbContextMemory>(config => {
+    config.UseInMemoryDatabase(builder.Configuration.GetConnectionString("DataBaseMemoria")!);
+});
+builder.Services.AddControllers();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-app.MapGet("/", () => $"Hello {target}!");
+if(app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
-app.Run(url);
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.MapControllers();
+
+app.Run();
