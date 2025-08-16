@@ -1,15 +1,21 @@
-using Aplicacao.Dispositivos;
-using Aplicacao.Models.Temeperatura;
-using Aplicacao.ValvulasAcionamentos;
 using Microsoft.EntityFrameworkCore;
+using Aplicacao.Entidades;
 
 namespace Aplicacao.Data
 {
-    public class  DbContextMemory : DbContext
+    public class DbContextMemory : DbContext
     {
-        public DbContextMemory (DbContextOptions<DbContextMemory> config) : base(config) {}
-        public DbSet<Dispositivo> Dispositivos { get; set; } = null!;
-        public DbSet<ValvulasAcionamento> ValvulasAcionamentos { get; set; } = null!;
-        public DbSet<Temperatura> Temperaturas { get; set; } = null!;
+        public DbSet<Tarefa> Tarefas { get; set; } = null!;
+        public DbContextMemory(DbContextOptions<DbContextMemory> config) : base(config) { }
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Tarefa>()
+                .Property(t => t.Status)
+                .HasConversion<string>();
+
+            modelBuilder.Entity<Tarefa>()
+                .Property(t => t.Prioridade)
+                .HasConversion<string>();
+        }
     }
 }
