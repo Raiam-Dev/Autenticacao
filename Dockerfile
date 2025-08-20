@@ -1,13 +1,24 @@
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build 
-WORKDIR /app 
-COPY *.sln . 
-COPY FirebaseStudio/*.csproj ./FirebaseStudio/ 
-RUN dotnet restore 
-COPY FirebaseStudio/. ./FirebaseStudio/ 
-WORKDIR /app/FirebaseStudio 
-RUN dotnet publish -c Release -o out 
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime 
-WORKDIR /app 
-COPY --from=build /app/FirebaseStudio/out ./ 
-EXPOSE 80 
-ENTRYPOINT ["dotnet", "FirebaseStudio.dll"] 
+# Etapa de build
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /app
+
+# Copia todos os arquivos do projeto e restaura
+COPY *.csproj ./
+COPY . ./
+RUN dotnet restore
+
+# Build da aplicação
+RUN dotnet publish -c Release -o out
+
+# Etapa de runtime
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+WORKDIR /app
+
+# Copia o resultado do build
+COPY --from=build /app/out ./
+
+# Porta que a API vai expor
+EXPOSE 80
+
+# Comando de entrada
+ENTRYPOINT ["dotnet", "RNovaTech.dll"]
