@@ -1,84 +1,120 @@
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
 using Aplicacao.Entidades;
-using Aplicacao.Data;
 using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
-using Aplicacao.PadraoResposta;
+using AplicacaoWebApi.Features.Shared;
+using RNovaTech.Infra.Data;
+using RNovaTech.Domain.Entidades;
+using RNovaTech.Features.Shared.Atributo;
+using RNovaTech.Features._Shared;
 
 namespace Aplicacao.Controller
 {
     [Route("api/[controller]")]
-    [ApiController]
-    public class TarefaController : ControllerBase
+    //[FirebaseAutenticacao]
+    public class TarefaController : ApiController
     {
         private readonly IMediator _mediator;
-        public TarefaController(IMediator mediatR)
+        private readonly Usuario _usuario;
+
+        public TarefaController(IMediator mediatR, IFirebaseTokenService firebaseToken, IHttpContextAccessor httpContextAccessor)
         {
             _mediator = mediatR;
+            _usuario = firebaseToken.GetCurrentUser(httpContextAccessor.HttpContext!);
         }
 
-        [HttpGet("buscar-pendencias")]
+        [HttpGet("pendentes")]
         [SwaggerOperation(
             Summary = "Busca todas as tarefas pendentes",
-            Description = "Retorna uma lista de pendencias"
+            Description = "Retorna uma lista de tarefas pendentes"
         )]
-        public async Task<IActionResult> BuscarPendencia(
-            [FromServices] DbContextMemory _dbContext)
+        [ProducesResponseType(typeof(CustomResult),StatusCodes.Status200OK)]
+        public async Task<IActionResult> Pendentes(
+            [FromServices] DbContextProducao _dbContext)
         {
-            return Ok(ApiResponse.Success(
-                await _dbContext.Tarefas.Where(
-                    t => t.Status == Status.Pendente)
-                    .ToListAsync()
-            ));
+            var tarefasPendentes = await _dbContext.Tarefas
+                .Where(t => t.Status == Status.Pendente && t.UsuarioUid == "b7253657-8542-4378-8d4e-8219b265b38b")
+                .ToListAsync();
+
+            return ResponseOk(tarefasPendentes);
         }
-        [HttpGet("buscar-prioritarias")]
-        public async Task<IActionResult> BuscarPrioritarias(
-            [FromServices] DbContextMemory _dbContext)
+
+        [HttpGet("prioritarias")]
+        [SwaggerOperation(
+            Summary = "Busca todas as tarefas prioritárias",
+            Description = "Retorna uma lista de tarefas com prioridade alta"
+        )]
+        [ProducesResponseType(typeof(CustomResult), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Prioritarias([FromServices] DbContextProducao _dbContext)
         {
-            return Ok(ApiResponse.Success(
-                await _dbContext.Tarefas.Where(
-                    t => t.Prioridade == Prioridade.Alta)
-                    .ToListAsync()
-            ));
+            var tarefasPrioritarias = await _dbContext.Tarefas
+                .Where(t => t.Prioridade == Prioridade.Alta && t.UsuarioUid == "b7253657-8542-4378-8d4e-8219b265b38b")
+                .ToListAsync();
+
+            return ResponseOk(tarefasPrioritarias);
         }
+
         [HttpGet]
-        public async Task<IActionResult> ListarTarefas(
-            [FromServices] DbContextMemory _dbContext)
+        [SwaggerOperation(
+            Summary = "Lista todas as tarefas",
+            Description = "Retorna uma lista de todas as tarefas cadastradas"
+        )]
+        [ProducesResponseType(typeof(CustomResult),StatusCodes.Status200OK)]
+        public async Task<IActionResult> ListarTarefas([FromServices] DbContextProducao _dbContext)
         {
-            return Ok(ApiResponse.Success(
-                await _dbContext.Tarefas.ToListAsync()
-            ));
+            var tarefas = await _dbContext.Tarefas.Where(t => t.UsuarioUid == "b7253657-8542-4378-8d4e-8219b265b38b").ToListAsync();
+
+            return ResponseOk(tarefas);
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreatedTarefa(AdicionarTarefa tarefa)
+        [SwaggerOperation(
+            Summary = "Adiciona uma nova tarefa ao sistema, retornando o ID da tarefa criada",
+            Description = "Caso não queira mandar data de vencimento mande ela no corpo como null"
+        )]
+        [ProducesResponseType(typeof(CustomResult),StatusCodes.Status201Created)]
+        public async Task<IActionResult> CriarTarefa(AdicionarTarefa tarefa)
         {
-            if (!ModelState.IsValid) return BadRequest(ApiResponse.Fail(tarefa, "Dados invalidos"));
-            return Ok();
+            var resposta = await _mediator.Send(tarefa);
+
+            return ResponseCreated(resposta);
         }
 
         [HttpPut]
+        [SwaggerOperation(
+            Summary = "Atualiza uma tarefa existente",
+            Description = "Atualiza os detalhes de uma tarefa existente, retornando sucesso ou falha"
+        )]
+        [ProducesResponseType(typeof(CustomResult), StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(CustomResult), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> UpdateTarefa(AtualizarTarefa tarefa)
         {
-            if (!ModelState.IsValid) return BadRequest(ApiResponse.Fail(tarefa, "Dados invalidos"));
-
             var resposta = await _mediator.Send(tarefa);
-            if (!resposta) return NotFound(ApiResponse.Fail(tarefa, "Tarefa não existe"));
 
-            return Ok(ApiResponse.Success(tarefa));
+            if (!resposta) 
+                return ResponseNotFound(erros: "Tarefa não existe");
+
+            return NoContent();
         }
 
         [HttpDelete]
-        public async Task<IActionResult> ExcluirTarefa(
-            [FromServices] DbContextMemory _dbContext,
-            Guid id)
+        [SwaggerOperation(
+            Summary = "Exclui uma tarefa",
+            Description = "Remove uma tarefa do sistema pelo ID, retornando sucesso ou falha"
+        )]
+        [ProducesResponseType(typeof(CustomResult), StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(CustomResult), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> ExcluirTarefa([FromServices] DbContextProducao _dbContext,Guid id)
         {
-            if (!ModelState.IsValid) return BadRequest(ApiResponse.Fail(null,"Dados invalidos"));
             var tarefa = await _dbContext.Tarefas.FindAsync(id);
-            _dbContext.Tarefas.Remove(tarefa!);
+
+            if (tarefa == null)
+                return ResponseNotFound(erros: "Tarefa não encontrada");
+
+            _dbContext.Tarefas.Remove(tarefa);
             await _dbContext.SaveChangesAsync();
-            return Ok(ApiResponse.Success(null));
+            return NoContent();
         }
     }
 }

@@ -1,27 +1,47 @@
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
-using MediatR;
-using RNovaTech.Domain.Entidades;
+using System.Text.Json.Serialization;
 
-namespace Aplicacao.Entidades
+namespace RNovaTech.Domain.Entidades
 {
-    public class AtualizarTarefa : IRequest<bool>
+    public class Tarefa
     {
-        [Required(ErrorMessage = "O Campo {0} é Obrigatório")]
+        [Key]
         public Guid Id { get; set; }
+
+        [JsonIgnore]
+        public Usuario Usuario { get; set; } = null!;
 
         [Required(ErrorMessage = "O Campo {0} é Obrigatório")]
         public string UsuarioUid { get; set; } = null!;
 
         [Required(ErrorMessage = "O Campo {0} é Obrigatório")]
         [StringLength(100)]
-        public string Titulo { get; set; }
+        public string Titulo { get; set; } = null!;
 
         [Required(ErrorMessage = "O Campo {0} é Obrigatório")]
         [StringLength(100)]
-        public string Descricao { get; set; } 
+        public string Descricao { get; set; } = null!;
+
         public DateTime DataCriacao { get; set; }
+
         public DateTime? Vencimento { get; set; }
+
         public Status Status { get; set; }
+
         public Prioridade Prioridade { get; set; }
+    }
+
+    public enum Status
+    {
+        Pendente,
+        EmProgresso,
+        Concluido
+    }
+    public enum Prioridade
+    {
+        Baixa,
+        Media,
+        Alta
     }
 }

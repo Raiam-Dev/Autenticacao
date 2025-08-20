@@ -1,9 +1,11 @@
-using Aplicacao.Data;
 using Aplicacao.Entidades;
+using AplicacaoWebApi.Infra.Data;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using RNovaTech.Domain.Entidades;
+using RNovaTech.Infra.Data;
 
 namespace Aplicacao.Entities.TarefaCommandHandler
 {
@@ -11,23 +13,22 @@ namespace Aplicacao.Entities.TarefaCommandHandler
         IRequestHandler<AdicionarTarefa, Guid>,
         IRequestHandler<AtualizarTarefa, bool>
     {
-        private readonly DbContextMemory _dbContext;
+        private readonly DbContextProducao _dbContext;
 
-        public TarefaCommandHandler(DbContextMemory dbContext)
+        public TarefaCommandHandler(DbContextProducao dbContext)
         {
             _dbContext = dbContext;
         }
 
-        public async Task<Guid> Handle(
-            AdicionarTarefa request,
-            CancellationToken cancellationToken)
+        public async Task<Guid> Handle(AdicionarTarefa request,CancellationToken cancellationToken)
         {
             var tarefa = new Tarefa
             {
                 Id = Guid.NewGuid(),
+                UsuarioUid = request.UsuarioUid,
                 Titulo = request.Titulo,
                 Descricao = request.Descricao,
-                DataCriacao = DateTime.Now,
+                DataCriacao = DateTime.UtcNow,
                 Vencimento = request.Vencimento,
                 Status = request.Status,
                 Prioridade = request.Prioridade
@@ -38,14 +39,13 @@ namespace Aplicacao.Entities.TarefaCommandHandler
             await _dbContext.SaveChangesAsync();
             return tarefa.Id;
         }
-        public async Task<bool> Handle(
-            AtualizarTarefa request,
-            CancellationToken cancellationToken)
+        public async Task<bool> Handle(AtualizarTarefa request,CancellationToken cancellationToken)
         {
             if (!await VerificarExiste(request.Id)) return false;
             var tarefa = new Tarefa
             {
                 Id = request.Id,
+                UsuarioUid = request.UsuarioUid,
                 Titulo = request.Titulo,
                 Descricao = request.Descricao,
                 DataCriacao = request.DataCriacao,

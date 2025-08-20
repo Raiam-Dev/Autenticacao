@@ -1,45 +1,37 @@
-using Aplicacao.Data;
-using Microsoft.EntityFrameworkCore;
-using Aplicacao.Entities.TarefaCommandHandler;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
+using Microsoft.AspNetCore.Builder.Extensions;
+using RNovaTech.Configuracao;
+using RNovaTech.Features._Shared;
+
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<DbContextMemory>(config => {
-    config.UseInMemoryDatabase(
-        builder.Configuration
-            .GetConnectionString("DataBaseMemoria")!);
-});
-builder.Services.AddMediatR(config => {
-    config.RegisterServicesFromAssembly(
-        typeof(TarefaCommandHandler).Assembly);
-});
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-    options.JsonSerializerOptions.Converters.Add
-        (
-            new System.Text.Json.Serialization
-                .JsonStringEnumConverter()
-        );
-    });
-builder.Services.AddSwaggerGen(config =>
+builder
+    .DbContextConfig()
+    .MediatorConfig()
+    .ControllerConfig()
+    .SwaggerConfig();
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IFirebaseTokenService, FirebaseTokenService>();
+
+var optionsDesenvolvimento = new AppOptions
 {
-    config.EnableAnnotations();
-});
-builder.Services.AddCors(config =>
-{
-    config.AddPolicy("Acesso", config => {
-        config.AllowAnyOrigin()
-        .AllowAnyHeader()
-        .AllowAnyMethod();
-    });
-});
+    Credential = GoogleCredential.FromFile(builder.Configuration["FIREBASE_CREDENTIAL_JSON_PRODUCAO"]),
+    ProjectId = "autenticacao-29915"
+};
+
+FirebaseApp.Create(optionsDesenvolvimento);
 
 var app = builder.Build();
 
 if(app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(config =>
+    {
+        config.SwaggerEndpoint("/swagger/v1/swagger.json", "RNovaTech");
+    });
 }
 
 app.UseCors("Acesso");
